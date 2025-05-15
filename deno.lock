@@ -1,0 +1,50 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@bradenmacdonald/s3-lite-client@0.9": "0.9.0",
+    "jsr:@bradenmacdonald/s3-lite-client@0.9.0": "0.9.0",
+    "jsr:@std/assert@1": "1.0.13",
+    "jsr:@std/cli@*": "1.0.17",
+    "jsr:@std/cli@^1.0.17": "1.0.17",
+    "jsr:@std/fs@*": "1.0.17",
+    "jsr:@std/fs@^1.0.17": "1.0.17",
+    "jsr:@std/internal@^1.0.6": "1.0.6",
+    "jsr:@std/path@*": "1.0.9",
+    "jsr:@std/path@^1.0.9": "1.0.9"
+  },
+  "jsr": {
+    "@bradenmacdonald/s3-lite-client@0.9.0": {
+      "integrity": "76e6f0e61b801b193b82a25a6d5aeac8e407e71a6549da0df539f4642eb15924"
+    },
+    "@std/assert@1.0.13": {
+      "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/cli@1.0.17": {
+      "integrity": "e15b9abe629e17be90cc6216327f03a29eae613365f1353837fa749aad29ce7b"
+    },
+    "@std/fs@1.0.17": {
+      "integrity": "1c00c632677c1158988ef7a004cb16137f870aafdb8163b9dce86ec652f3952b",
+      "dependencies": [
+        "jsr:@std/path@^1.0.9"
+      ]
+    },
+    "@std/internal@1.0.6": {
+      "integrity": "9533b128f230f73bd209408bb07a4b12f8d4255ab2a4d22a1fd6d87304aca9a4"
+    },
+    "@std/path@1.0.9": {
+      "integrity": "260a49f11edd3db93dd38350bf9cd1b4d1366afa98e81b86167b4e3dd750129e"
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@bradenmacdonald/s3-lite-client@0.9",
+      "jsr:@std/assert@1",
+      "jsr:@std/cli@^1.0.17",
+      "jsr:@std/fs@^1.0.17",
+      "jsr:@std/path@^1.0.9"
+    ]
+  }
+}
