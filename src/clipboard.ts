@@ -36,17 +36,37 @@ async function getMacOSFilePaths(): Promise<string[]> {
   const script = [
     'set thePaths to {}',
     'try',
-    '  set thePasteboard to the clipboard as «class furl»',
-    '  copy thePasteboard to end of thePaths',
-    'on error',
-    '  try',
+    '  set clipboardType to class of (the clipboard)',
+    '  log "Clipboard type: " & clipboardType',
+    '  if clipboardType is «class furl» then',
+    '    set thePasteboard to the clipboard as «class furl»',
+    '    if thePasteboard is not missing value then',
+    '      copy thePasteboard to end of thePaths',
+    '    end if',
+    '  else if clipboardType is list then',
     '    set thePasteboard to the clipboard as list',
-    '    repeat with i in thePasteboard',
-    '      if class of i is «class furl» then',
-    '        copy i to end of thePaths',
-    '      end if',
-    '    end repeat',
-    '  end try',
+    '    if thePasteboard is not missing value then',
+    '      repeat with i in thePasteboard',
+    '        if class of i is «class furl» then',
+    '          copy i to end of thePaths',
+    '        end if',
+    '      end repeat',
+    '    end if',
+    '  else',
+    '    -- Try to get file paths using a different approach',
+    '    try',
+    '      set fileList to (the clipboard as «class furl») as list',
+    '      repeat with aFile in fileList',
+    '        if class of aFile is «class furl» then',
+    '          copy aFile to end of thePaths',
+    '        end if',
+    '      end repeat',
+    '    on error',
+    '      log "Clipboard contains non-file content of type: " & clipboardType',
+    '    end try',
+    '  end if',
+    'on error errMsg',
+    '  log "Error processing clipboard: " & errMsg',
     'end try',
     'set posixPaths to {}',
     'repeat with i in thePaths',
@@ -57,9 +77,14 @@ async function getMacOSFilePaths(): Promise<string[]> {
   
   try {
     const result = await runCommand("osascript", ["-e", script]);
-    return result.split(", ").map(path => path.trim()).filter(Boolean);
+    console.log("AppleScript result:", result);
+    // Only return paths if we actually got some valid paths
+    const paths = result.split(", ").map(path => path.trim()).filter(Boolean);
+    console.log("Processed paths:", paths);
+    return paths;
   } catch (error) {
-    console.warn("Failed to get file paths from clipboard:", error);
+    console.log("AppleScript error:", error);
+    // If we get an error, it's likely not a file path, so return empty array
     return [];
   }
 }
@@ -82,29 +107,48 @@ export async function getClipboardContent(): Promise<ClipboardContent> {
 
     switch (Deno.build.os) {
       case "darwin": // macOS
-        // First try to get file paths
-        filePaths = await getMacOSFilePaths();
-        if (filePaths.length > 0) {
+        // First get clipboard content using pbpaste
+        console.log("Getting clipboard content using pbpaste...");
+        content = await runCommand("pbpaste", []);
+        console.log("Clipboard content length:", content.length);
+
+        // Check if the content looks like a filename (contains a dot and no newlines)
+        if (content && !content.includes("\n") && /^[^/\\]+\.\w+$/.test(content)) {
+          console.log("Content looks like a filename with extension, getting full path using AppleScript...");
+          // Try to get the full file path using AppleScript
+          filePaths = await getMacOSFilePaths();
+          console.log("File paths from AppleScript:", filePaths);
+
           if (filePaths.length === 1) {
             const path = filePaths[0];
-            if (await isFileSizeWithinLimit(path)) {
-              try {
-                const content = await Deno.readFile(path);
-                return { type: "file_content", path, content };
-              } catch (error) {
-                console.warn("Failed to read file content:", error);
-                return { type: "file", path };
+            console.log("Single file path found:", path);
+            try {
+              const fileInfo = await Deno.stat(path);
+              if (fileInfo.isFile) {
+                console.log("Content is a valid file path");
+                if (await isFileSizeWithinLimit(path)) {
+                  try {
+                    const fileContent = await Deno.readFile(path);
+                    return { type: "file_content", path, content: fileContent };
+                  } catch (error) {
+                    console.warn("Failed to read file content:", error);
+                    return { type: "file", path };
+                  }
+                } else {
+                  throw new Error("File size exceeds 10MB limit");
+                }
               }
-            } else {
-              throw new Error("File size exceeds 10MB limit");
+            } catch (error) {
+              console.log("Not a valid file path, treating as text content");
             }
-          } else {
-            throw new Error("Multiple files are not supported");
+          } else if (filePaths.length > 1) {
+            console.log("Multiple files detected, treating as text content");
           }
         }
-        // If no files found, fall back to text content
-        content = await runCommand("pbpaste", []);
-        break;
+
+        // If we get here, treat as text content
+        return { type: "text", content };
+
       case "linux":
         try {
           content = await runCommand("xclip", ["-o", "-selection", "clipboard"]);
@@ -119,37 +163,15 @@ export async function getClipboardContent(): Promise<ClipboardContent> {
             );
           }
         }
-        break;
+        return { type: "text", content };
+
       case "windows":
         content = await runCommand("powershell", ["-command", "Get-Clipboard"]);
-        break;
+        return { type: "text", content };
+
       default:
         throw new Error(`Unsupported OS: ${Deno.build.os} for clipboard access.`);
     }
-
-    // Basic check for other OS or fallback
-    if (!content.includes("\n")) {
-      try {
-        const fileInfo = await Deno.stat(content);
-        if (fileInfo.isFile) {
-          if (await isFileSizeWithinLimit(content)) {
-            try {
-              const fileContent = await Deno.readFile(content);
-              return { type: "file_content", path: content, content: fileContent };
-            } catch (error) {
-              console.warn("Failed to read file content:", error);
-              return { type: "file", path: content };
-            }
-          } else {
-            throw new Error("File size exceeds 10MB limit");
-          }
-        }
-      } catch (_e) {
-        // Not a valid path or file doesn't exist, treat as text
-      }
-    }
-    return { type: "text", content };
-
   } catch (error) {
     console.error("Error reading from clipboard:", (error as Error).message);
     throw error;

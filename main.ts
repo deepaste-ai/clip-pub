@@ -2,7 +2,7 @@ import { parseArgs } from "jsr:@std/cli/parse-args";
 import { promptForConfig, saveConfig, loadConfig, type Config } from "./src/config.ts";
 import { getClipboardContent, type ClipboardContent } from "./src/clipboard.ts";
 import { uploadObject } from "./src/r2.ts";
-import { getMimeType, generateFilenameFromTimestamp } from "./src/utils.ts";
+import { getMimeType, generateFilenameFromTimestamp, detectContentFormat } from "./src/utils.ts";
 import { basename } from "jsr:@std/path/basename";
 
 const helpText = `
@@ -93,7 +93,8 @@ async function publish(customName?: string) {
   switch (clipboardData.type) {
     case "file_content": {
       console.log(`Clipboard contains file: ${clipboardData.path}`);
-      objectKey = customName || basename(clipboardData.path);
+      const originalExt = basename(clipboardData.path).split('.').pop() || '';
+      objectKey = customName || generateFilenameFromTimestamp(originalExt);
       dataToUpload = clipboardData.content;
       contentType = getMimeType(clipboardData.path);
       console.log(`Uploading file ${objectKey} (MIME: ${contentType})...`);
@@ -101,7 +102,8 @@ async function publish(customName?: string) {
     }
     case "file": {
       console.log(`Clipboard contains file path: ${clipboardData.path}`);
-      objectKey = customName || basename(clipboardData.path);
+      const originalExt = basename(clipboardData.path).split('.').pop() || '';
+      objectKey = customName || generateFilenameFromTimestamp(originalExt);
       try {
         dataToUpload = await Deno.readFile(clipboardData.path);
         contentType = getMimeType(clipboardData.path);
@@ -115,12 +117,11 @@ async function publish(customName?: string) {
     }
     case "text": {
       console.log("Clipboard contains text.");
-      // Basic HTML detection
-      const isHtml = clipboardData.content.trim().match(/^<([a-z]+)([^<]+)*(?:>(.*)<\/\1>|\s+\/>)$/i);
-      const extension = isHtml ? "html" : "txt";
-      objectKey = customName || generateFilenameFromTimestamp(extension);
+      const format = detectContentFormat(clipboardData.content);
+      objectKey = customName || generateFilenameFromTimestamp(format.extension);
       dataToUpload = clipboardData.content;
-      contentType = getMimeType(objectKey); // MIME based on generated filename
+      contentType = getMimeType(objectKey);
+      console.log(`Detected format: ${format.format} (confidence: ${(format.confidence * 100).toFixed(0)}%)`);
       console.log(`Uploading text as ${objectKey} (MIME: ${contentType})...`);
       break;
     }
