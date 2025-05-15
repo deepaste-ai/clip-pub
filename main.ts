@@ -90,27 +90,40 @@ async function publish(customName?: string) {
   let dataToUpload: string | Uint8Array;
   let contentType: string;
 
-  if (clipboardData.type === "file") {
-    console.log(`Clipboard contains file path: ${clipboardData.path}`);
-    objectKey = customName || basename(clipboardData.path);
-    try {
-      dataToUpload = await Deno.readFile(clipboardData.path);
+  switch (clipboardData.type) {
+    case "file_content": {
+      console.log(`Clipboard contains file: ${clipboardData.path}`);
+      objectKey = customName || basename(clipboardData.path);
+      dataToUpload = clipboardData.content;
       contentType = getMimeType(clipboardData.path);
       console.log(`Uploading file ${objectKey} (MIME: ${contentType})...`);
-    } catch (error) {
-      console.error(`Error reading file ${clipboardData.path}:`, (error as Error).message);
-      Deno.exit(1);
-      return;
+      break;
     }
-  } else { // type === "text"
-    console.log("Clipboard contains text.");
-    // Basic HTML detection
-    const isHtml = clipboardData.content.trim().match(/^<([a-z]+)([^<]+)*(?:>(.*)<\/\1>|\s+\/>)$/i);
-    const extension = isHtml ? "html" : "txt";
-    objectKey = customName || generateFilenameFromTimestamp(extension);
-    dataToUpload = clipboardData.content;
-    contentType = getMimeType(objectKey); // MIME based on generated filename
-    console.log(`Uploading text as ${objectKey} (MIME: ${contentType})...`);
+    case "file": {
+      console.log(`Clipboard contains file path: ${clipboardData.path}`);
+      objectKey = customName || basename(clipboardData.path);
+      try {
+        dataToUpload = await Deno.readFile(clipboardData.path);
+        contentType = getMimeType(clipboardData.path);
+        console.log(`Uploading file ${objectKey} (MIME: ${contentType})...`);
+      } catch (error) {
+        console.error(`Error reading file ${clipboardData.path}:`, (error as Error).message);
+        Deno.exit(1);
+        return;
+      }
+      break;
+    }
+    case "text": {
+      console.log("Clipboard contains text.");
+      // Basic HTML detection
+      const isHtml = clipboardData.content.trim().match(/^<([a-z]+)([^<]+)*(?:>(.*)<\/\1>|\s+\/>)$/i);
+      const extension = isHtml ? "html" : "txt";
+      objectKey = customName || generateFilenameFromTimestamp(extension);
+      dataToUpload = clipboardData.content;
+      contentType = getMimeType(objectKey); // MIME based on generated filename
+      console.log(`Uploading text as ${objectKey} (MIME: ${contentType})...`);
+      break;
+    }
   }
 
   try {
@@ -119,10 +132,10 @@ async function publish(customName?: string) {
     console.log(`🔗 Public URL: ${publicUrl}`);
     // Attempt to copy URL to clipboard (best effort)
     try {
-        await copyToClipboard(publicUrl);
-        console.log("(Public URL has been copied to your clipboard)");
+      await copyToClipboard(publicUrl);
+      console.log("(Public URL has been copied to your clipboard)");
     } catch (copyError) {
-        console.warn("(Could not copy URL to clipboard automatically)");
+      console.warn("(Could not copy URL to clipboard automatically)");
     }
   } catch (error) {
     console.error("Upload failed."); // Specific error already logged by uploadObject
