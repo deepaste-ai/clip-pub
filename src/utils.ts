@@ -16,6 +16,12 @@ const mimeTypes: Record<string, string> = {
   gif: "image/gif",
   svg: "image/svg+xml",
   webp: "image/webp",
+  // Video
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  avi: "video/x-msvideo",
+  mkv: "video/x-matroska",
+  webm: "video/webm",
   // Applications
   pdf: "application/pdf",
   zip: "application/zip",
@@ -51,6 +57,13 @@ interface ContentFormat {
 export function detectContentFormat(content: string): ContentFormat {
   // Remove leading/trailing whitespace for analysis
   const trimmedContent = content.trim();
+  
+  // Video detection (basic check for video file extensions)
+  const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+  const extension = trimmedContent.split('.').pop()?.toLowerCase();
+  if (extension && videoExtensions.includes(extension)) {
+    return { format: "video", extension, confidence: 0.9 };
+  }
   
   // JSON detection
   try {

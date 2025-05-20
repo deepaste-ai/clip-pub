@@ -79,7 +79,13 @@ async function publish(customName?: string) {
   console.log("Reading clipboard...");
   let clipboardData: ClipboardContent;
   try {
-    clipboardData = await getClipboardContent();
+    const content = await getClipboardContent();
+    if (!content) {
+      console.error("No content found in clipboard");
+      Deno.exit(1);
+      return;
+    }
+    clipboardData = content;
   } catch (error) {
     console.error("Failed to read clipboard:", (error as Error).message);
     Deno.exit(1);

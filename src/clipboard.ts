@@ -159,19 +159,7 @@ export async function getClipboardContent(): Promise<ClipboardContent | undefine
 
     switch (Deno.build.os) {
       case "darwin": { // macOS
-        // First try to get image data
-        console.log("Checking for image data in clipboard...");
-        const imageData = await getMacOSImageData();
-        if (imageData) {
-          console.log("Found image data in clipboard");
-          return {
-            type: "image",
-            content: imageData,
-            format: "png" // We'll convert to jpg later
-          };
-        }
-
-        // If no image, continue with existing logic
+        // First get clipboard content using pbpaste
         console.log("Getting clipboard content using pbpaste...");
         content = await runCommand("pbpaste", []);
         console.log("Clipboard content length:", content.length);
@@ -199,22 +187,62 @@ export async function getClipboardContent(): Promise<ClipboardContent | undefine
                     return { type: "file", path };
                   }
                 } else {
-                  throw new Error("File size exceeds 10MB limit");
+                  throw new Error("File size exceeds 20MB limit");
                 }
               }
             } catch (_error) {
-              console.log("Not a valid file path, treating as text content");
+              console.log("Not a valid file path, continuing with other checks...");
             }
           } else if (filePaths.length > 1) {
-            console.log("Multiple files detected, treating as text content");
+            console.log("Multiple files detected, continuing with other checks...");
           }
+        }
+
+        // Then try to get image data
+        console.log("Checking for image data in clipboard...");
+        const imageData = await getMacOSImageData();
+        if (imageData) {
+          console.log("Found image data in clipboard");
+          return {
+            type: "image",
+            content: imageData,
+            format: "png" // We'll convert to jpg later
+          };
         }
 
         // If we get here, treat as text content
         return { type: "text", content };
       }
-      case "linux":
-        // For Linux, we'll need to use xclip with -t image/png or -t image/jpeg
+      case "linux": {
+        // First try to get file paths
+        try {
+          content = await runCommand("xclip", ["-o", "-selection", "clipboard"]);
+          if (content && !content.includes("\n") && /^[^/\\]+\.\w+$/.test(content)) {
+            // Check if it's a valid file path
+            try {
+              const fileInfo = await Deno.stat(content);
+              if (fileInfo.isFile) {
+                if (await isFileSizeWithinLimit(content)) {
+                  try {
+                    const fileContent = await Deno.readFile(content);
+                    return { type: "file_content", path: content, content: fileContent };
+                  } catch (error) {
+                    console.warn("Failed to read file content:", error);
+                    return { type: "file", path: content };
+                  }
+                } else {
+                  throw new Error("File size exceeds 20MB limit");
+                }
+              }
+            } catch (_error) {
+              console.log("Not a valid file path, continuing with other checks...");
+            }
+          }
+        } catch (_e) {
+          console.log("Failed to get clipboard content, continuing with other checks...");
+        }
+
+        // Then try to get image data
         try {
           // Try PNG first
           const pngData = await runCommand("xclip", ["-o", "-selection", "clipboard", "-t", "image/png"]);
@@ -260,9 +288,37 @@ export async function getClipboardContent(): Promise<ClipboardContent | undefine
           content = await runCommand("xsel", ["--clipboard", "--output"]);
         }
         return { type: "text", content };
+      }
+      case "windows": {
+        // First try to get file paths
+        try {
+          content = await runCommand("powershell", ["-command", "Get-Clipboard"]);
+          if (content && !content.includes("\n") && /^[^/\\]+\.\w+$/.test(content)) {
+            // Check if it's a valid file path
+            try {
+              const fileInfo = await Deno.stat(content);
+              if (fileInfo.isFile) {
+                if (await isFileSizeWithinLimit(content)) {
+                  try {
+                    const fileContent = await Deno.readFile(content);
+                    return { type: "file_content", path: content, content: fileContent };
+                  } catch (error) {
+                    console.warn("Failed to read file content:", error);
+                    return { type: "file", path: content };
+                  }
+                } else {
+                  throw new Error("File size exceeds 20MB limit");
+                }
+              }
+            } catch (_error) {
+              console.log("Not a valid file path, continuing with other checks...");
+            }
+          }
+        } catch (_e) {
+          console.log("Failed to get clipboard content, continuing with other checks...");
+        }
 
-      case "windows":
-        // For Windows, we'll need to use PowerShell to get image data
+        // Then try to get image data
         try {
           const psScript = `
             Add-Type -AssemblyName System.Windows.Forms
@@ -287,7 +343,7 @@ export async function getClipboardContent(): Promise<ClipboardContent | undefine
           return { type: "text", content };
         }
         break;
-
+      }
       default:
         throw new Error(`Unsupported OS: ${Deno.build.os} for clipboard access.`);
     }
