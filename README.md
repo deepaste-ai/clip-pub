@@ -32,7 +32,7 @@ git clone https://github.com/yourusername/clip-pub.git
 cd clip-pub
 
 # Install globally (optional)
-deno install --allow-all --name clippub main.ts
+deno install --global --allow-all -f --name clippub main.ts
 ```
 
 ## Configuration ⚙️

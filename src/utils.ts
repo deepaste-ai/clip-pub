@@ -1,3 +1,6 @@
+import { Image } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
+
+
 const mimeTypes: Record<string, string> = {
   // Text based
   txt: "text/plain",
@@ -113,29 +116,19 @@ export function detectContentFormat(content: string): ContentFormat {
   return { format: "plain", extension: "txt", confidence: 1.0 };
 }
 
-// Convert image data to JPG format using Sharp
+/**
+ * Convert image to JPEG using ImageScript (WASM based).
+ */
 export async function convertToJpg(imageData: Uint8Array): Promise<Uint8Array> {
-  // We'll use Sharp for image conversion
-  // Note: This requires the Sharp module to be installed
-  const sharp = await import("npm:sharp");
-  
   try {
-    const image = sharp.default(imageData);
-    const metadata = await image.metadata();
-    
-    // If it's already a JPEG, just return it
-    if (metadata.format === 'jpeg') {
-      return imageData;
-    }
-    
-    // Convert to JPEG with good quality
-    const jpegBuffer = await image
-      .jpeg({ quality: 90, mozjpeg: true })
-      .toBuffer();
-    
-    return new Uint8Array(jpegBuffer);
+    // 尝试解析图片
+    const image = await Image.decode(imageData);
+
+    // 转换成 JPEG，设置压缩质量为 90（目前不支持 mozjpeg）
+    const jpegBuffer = await image.encodeJPEG(90);
+    return jpegBuffer;
   } catch (error) {
     console.error("Failed to convert image:", error);
     throw new Error("Failed to convert image to JPG format");
   }
-} 
+}
