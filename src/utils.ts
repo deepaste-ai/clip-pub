@@ -98,4 +98,31 @@ export function detectContentFormat(content: string): ContentFormat {
 
   // Default to plain text
   return { format: "plain", extension: "txt", confidence: 1.0 };
+}
+
+// Convert image data to JPG format using Sharp
+export async function convertToJpg(imageData: Uint8Array): Promise<Uint8Array> {
+  // We'll use Sharp for image conversion
+  // Note: This requires the Sharp module to be installed
+  const sharp = await import("npm:sharp");
+  
+  try {
+    const image = sharp.default(imageData);
+    const metadata = await image.metadata();
+    
+    // If it's already a JPEG, just return it
+    if (metadata.format === 'jpeg') {
+      return imageData;
+    }
+    
+    // Convert to JPEG with good quality
+    const jpegBuffer = await image
+      .jpeg({ quality: 90, mozjpeg: true })
+      .toBuffer();
+    
+    return new Uint8Array(jpegBuffer);
+  } catch (error) {
+    console.error("Failed to convert image:", error);
+    throw new Error("Failed to convert image to JPG format");
+  }
 } 

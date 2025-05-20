@@ -2,7 +2,7 @@ import { parseArgs } from "jsr:@std/cli/parse-args";
 import { promptForConfig, saveConfig, loadConfig, type Config } from "./src/config.ts";
 import { getClipboardContent, type ClipboardContent } from "./src/clipboard.ts";
 import { uploadObject } from "./src/r2.ts";
-import { getMimeType, generateFilenameFromTimestamp, detectContentFormat } from "./src/utils.ts";
+import { getMimeType, generateFilenameFromTimestamp, detectContentFormat, convertToJpg } from "./src/utils.ts";
 import { basename } from "jsr:@std/path/basename";
 
 const helpText = `
@@ -91,6 +91,22 @@ async function publish(customName?: string) {
   let contentType: string;
 
   switch (clipboardData.type) {
+    case "image": {
+      console.log("Clipboard contains an image.");
+      objectKey = customName || generateFilenameFromTimestamp("jpg");
+      try {
+        // Convert image to JPG format
+        console.log("Converting image to JPG format...");
+        dataToUpload = await convertToJpg(clipboardData.content);
+        contentType = "image/jpeg";
+        console.log(`Uploading image as ${objectKey}...`);
+      } catch (error) {
+        console.error("Failed to process image:", (error as Error).message);
+        Deno.exit(1);
+        return;
+      }
+      break;
+    }
     case "file_content": {
       console.log(`Clipboard contains file: ${clipboardData.path}`);
       const originalExt = basename(clipboardData.path).split('.').pop() || '';
@@ -146,40 +162,39 @@ async function publish(customName?: string) {
 
 // Helper function to attempt to copy text to clipboard
 async function copyToClipboard(text: string): Promise<void> {
-    let cmd: string[];
-    switch (Deno.build.os) {
-        case "darwin":
-            cmd = ["pbcopy"];
-            break;
-        case "linux":
-            // Try xclip, then xsel. Assumes one is installed.
-            // This is a simplified attempt.
-            try {
-                await new Deno.Command("xclip", { args: ["-selection", "clipboard"], stdin: "piped" }).spawn();
-                cmd = ["xclip", "-selection", "clipboard"];
-            } catch {
-                cmd = ["xsel", "--clipboard", "--input"];
-            }
-            break;
-        case "windows":
-            cmd = ["clip"]; // `clip` on Windows reads from stdin
-            break;
-        default:
-            throw new Error(`Unsupported OS for copying to clipboard: ${Deno.build.os}`);
-    }
+  let cmd: string[];
+  switch (Deno.build.os) {
+    case "darwin":
+      cmd = ["pbcopy"];
+      break;
+    case "linux":
+      // Try xclip, then xsel. Assumes one is installed.
+      try {
+        await new Deno.Command("xclip", { args: ["-selection", "clipboard"], stdin: "piped" }).spawn();
+        cmd = ["xclip", "-selection", "clipboard"];
+      } catch {
+        cmd = ["xsel", "--clipboard", "--input"];
+      }
+      break;
+    case "windows":
+      cmd = ["clip"]; // `clip` on Windows reads from stdin
+      break;
+    default:
+      throw new Error(`Unsupported OS for copying to clipboard: ${Deno.build.os}`);
+  }
 
-    const process = new Deno.Command(cmd[0], {
-        args: cmd.slice(1),
-        stdin: "piped",
-    });
-    const child = process.spawn();
-    const writer = child.stdin.getWriter();
-    await writer.write(new TextEncoder().encode(text));
-    await writer.close();
-    const status = await child.status;
-    if (!status.success) {
-        throw new Error(`Failed to copy to clipboard. Command exited with ${status.code}`);
-    }
+  const process = new Deno.Command(cmd[0], {
+    args: cmd.slice(1),
+    stdin: "piped",
+  });
+  const child = process.spawn();
+  const writer = child.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(text));
+  await writer.close();
+  const status = await child.status;
+  if (!status.success) {
+    throw new Error(`Failed to copy to clipboard. Command exited with ${status.code}`);
+  }
 }
 
 if (import.meta.main) {

@@ -14,7 +14,13 @@ export interface ClipboardFileContent {
   content: Uint8Array;
 }
 
-export type ClipboardContent = ClipboardText | ClipboardFilePath | ClipboardFileContent;
+export interface ClipboardImage {
+  type: "image";
+  content: Uint8Array;
+  format: "png" | "jpg";
+}
+
+export type ClipboardContent = ClipboardText | ClipboardFilePath | ClipboardFileContent | ClipboardImage;
 
 // Helper to run a command and get its output
 async function runCommand(cmd: string, args: string[]): Promise<string> {
@@ -89,8 +95,8 @@ async function getMacOSFilePaths(): Promise<string[]> {
   }
 }
 
-// Helper to check if file size is within limit (10MB)
-async function isFileSizeWithinLimit(path: string, limitMB: number = 10): Promise<boolean> {
+// Helper to check if file size is within limit (20MB)
+async function isFileSizeWithinLimit(path: string, limitMB: number = 20): Promise<boolean> {
   try {
     const fileInfo = await Deno.stat(path);
     return fileInfo.size <= limitMB * 1024 * 1024;
@@ -100,14 +106,72 @@ async function isFileSizeWithinLimit(path: string, limitMB: number = 10): Promis
   }
 }
 
-export async function getClipboardContent(): Promise<ClipboardContent> {
+// Helper to get image data from macOS clipboard using AppleScript
+async function getMacOSImageData(): Promise<Uint8Array | null> {
+  const script = `
+    try
+      set imageData to (the clipboard as «class PNGf»)
+      if imageData is not missing value then
+        set tempFile to (POSIX path of (path to temporary items)) & "clipboard_image.png"
+        set fileRef to open for access tempFile with write permission
+        write imageData to fileRef
+        close access fileRef
+        return tempFile
+      end if
+    on error
+      try
+        set imageData to (the clipboard as «class JPEG»)
+        if imageData is not missing value then
+          set tempFile to (POSIX path of (path to temporary items)) & "clipboard_image.jpg"
+          set fileRef to open for access tempFile with write permission
+          write imageData to fileRef
+          close access fileRef
+          return tempFile
+        end if
+      on error
+        return missing value
+      end try
+    end try
+  `;
+
+  try {
+    const tempFile = await runCommand("osascript", ["-e", script]);
+    if (tempFile && tempFile !== "missing value") {
+      const imageData = await Deno.readFile(tempFile);
+      // Clean up temp file
+      try {
+        await Deno.remove(tempFile);
+      } catch (e) {
+        console.warn("Failed to clean up temp file:", e);
+      }
+      return imageData;
+    }
+  } catch (error) {
+    console.log("AppleScript image error:", error);
+  }
+  return null;
+}
+
+export async function getClipboardContent(): Promise<ClipboardContent | undefined> {
   try {
     let content: string;
     let filePaths: string[] = [];
 
     switch (Deno.build.os) {
-      case "darwin": // macOS
-        // First get clipboard content using pbpaste
+      case "darwin": { // macOS
+        // First try to get image data
+        console.log("Checking for image data in clipboard...");
+        const imageData = await getMacOSImageData();
+        if (imageData) {
+          console.log("Found image data in clipboard");
+          return {
+            type: "image",
+            content: imageData,
+            format: "png" // We'll convert to jpg later
+          };
+        }
+
+        // If no image, continue with existing logic
         console.log("Getting clipboard content using pbpaste...");
         content = await runCommand("pbpaste", []);
         console.log("Clipboard content length:", content.length);
@@ -138,7 +202,7 @@ export async function getClipboardContent(): Promise<ClipboardContent> {
                   throw new Error("File size exceeds 10MB limit");
                 }
               }
-            } catch (error) {
+            } catch (_error) {
               console.log("Not a valid file path, treating as text content");
             }
           } else if (filePaths.length > 1) {
@@ -148,26 +212,81 @@ export async function getClipboardContent(): Promise<ClipboardContent> {
 
         // If we get here, treat as text content
         return { type: "text", content };
-
+      }
       case "linux":
+        // For Linux, we'll need to use xclip with -t image/png or -t image/jpeg
+        try {
+          // Try PNG first
+          const pngData = await runCommand("xclip", ["-o", "-selection", "clipboard", "-t", "image/png"]);
+          if (pngData) {
+            return {
+              type: "image",
+              content: new TextEncoder().encode(pngData),
+              format: "png"
+            };
+          }
+        } catch (_e) {
+          try {
+            // Try JPEG
+            const jpegData = await runCommand("xclip", ["-o", "-selection", "clipboard", "-t", "image/jpeg"]);
+            if (jpegData) {
+              return {
+                type: "image",
+                content: new TextEncoder().encode(jpegData),
+                format: "jpg"
+              };
+            }
+          } catch (_e2) {
+            // Fall back to text content
+            try {
+              content = await runCommand("xclip", ["-o", "-selection", "clipboard"]);
+            } catch (_e3) {
+              console.warn("xclip failed, trying xsel. Please ensure xclip or xsel is installed.");
+              try {
+                content = await runCommand("xsel", ["--clipboard", "--output"]);
+              } catch (_e4) {
+                throw new Error(
+                  "Failed to read from clipboard using xclip and xsel. Please ensure one of them is installed and configured.",
+                );
+              }
+            }
+            return { type: "text", content };
+          }
+        }
+        // If we get here, no image data was found, try text content
         try {
           content = await runCommand("xclip", ["-o", "-selection", "clipboard"]);
         } catch (_e) {
-          // Fallback to xsel if xclip is not available or fails
-          console.warn("xclip failed, trying xsel. Please ensure xclip or xsel is installed.");
-          try {
-            content = await runCommand("xsel", ["--clipboard", "--output"]);
-          } catch (_e2) {
-            throw new Error(
-              "Failed to read from clipboard using xclip and xsel. Please ensure one of them is installed and configured.",
-            );
-          }
+          content = await runCommand("xsel", ["--clipboard", "--output"]);
         }
         return { type: "text", content };
 
       case "windows":
-        content = await runCommand("powershell", ["-command", "Get-Clipboard"]);
-        return { type: "text", content };
+        // For Windows, we'll need to use PowerShell to get image data
+        try {
+          const psScript = `
+            Add-Type -AssemblyName System.Windows.Forms
+            $clipboard = [System.Windows.Forms.Clipboard]::GetImage()
+            if ($clipboard) {
+              $ms = New-Object System.IO.MemoryStream
+              $clipboard.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+              [Convert]::ToBase64String($ms.ToArray())
+            }
+          `;
+          const imageData = await runCommand("powershell", ["-command", psScript]);
+          if (imageData) {
+            return {
+              type: "image",
+              content: new TextEncoder().encode(imageData),
+              format: "png"
+            };
+          }
+        } catch (_e) {
+          // Fall back to text content
+          content = await runCommand("powershell", ["-command", "Get-Clipboard"]);
+          return { type: "text", content };
+        }
+        break;
 
       default:
         throw new Error(`Unsupported OS: ${Deno.build.os} for clipboard access.`);
@@ -176,4 +295,4 @@ export async function getClipboardContent(): Promise<ClipboardContent> {
     console.error("Error reading from clipboard:", (error as Error).message);
     throw error;
   }
-} 
+}
