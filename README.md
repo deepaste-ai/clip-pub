@@ -2,7 +2,7 @@
 
 A command-line tool that quickly publishes clipboard content to a public URL using Cloudflare R2.
 
-English | [中文](#clip-pub-中文)
+English | [中文](#clip-pub-中文-)
 
 ## Features ✨
 
