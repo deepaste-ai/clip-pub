@@ -1,0 +1,10 @@
+# Deno
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+deno.lock
+
+# VSCode
+.vscode/
