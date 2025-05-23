@@ -53,9 +53,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            clippub-linux
-            clippub-macos
-            clippub-windows.exe
+            clippub-linux/clippub-linux
+            clippub-macos/clippub-macos
+            clippub-windows.exe/clippub-windows.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
