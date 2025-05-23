@@ -26,9 +26,34 @@ English | [中文](#clip-pub-中文-)
 
 ## Installation 💻
 
+### Quick Install
+
+#### macOS / Linux
+```bash
+# Download and run the installation script
+curl -fsSL https://raw.githubusercontent.com/deepaste-ai/clip-pub/main/install.sh | bash
+```
+
+#### Windows (PowerShell)
+```powershell
+# Download and run the installation script
+irm https://raw.githubusercontent.com/deepaste-ai/clip-pub/main/install.ps1 | iex
+```
+
+The installation script will:
+1. Detect your OS and architecture
+2. Download the appropriate binary
+3. Install it to the correct location
+4. Add it to your PATH
+5. Run initial configuration (if needed)
+
+### Manual Installation
+
+If you prefer to install manually:
+
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/clip-pub.git
+git clone https://github.com/deepaste-ai/clip-pub.git
 cd clip-pub
 
 # Install globally (optional)
@@ -152,13 +177,38 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 安装 💻
 
+### 快速安装
+
+#### macOS / Linux
+```bash
+# 下载并运行安装脚本
+curl -fsSL https://raw.githubusercontent.com/deepaste-ai/clip-pub/main/install.sh | bash
+```
+
+#### Windows (PowerShell)
+```powershell
+# 下载并运行安装脚本
+irm https://raw.githubusercontent.com/deepaste-ai/clip-pub/main/install.ps1 | iex
+```
+
+安装脚本将：
+1. 检测您的操作系统和架构
+2. 下载对应的二进制文件
+3. 安装到正确的位置
+4. 添加到 PATH 环境变量
+5. 运行初始配置（如果需要）
+
+### 手动安装
+
+如果您更喜欢手动安装：
+
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/clip-pub.git
+git clone https://github.com/deepaste-ai/clip-pub.git
 cd clip-pub
 
 # 全局安装（可选）
-deno install --allow-all --name clippub main.ts
+deno install --global --allow-all -f --name clippub main.ts
 ```
 
 ## 配置 ⚙️

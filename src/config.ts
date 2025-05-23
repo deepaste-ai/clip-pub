@@ -1,5 +1,6 @@
 import { ensureDir } from "jsr:@std/fs/ensure-dir";
 import { join } from "jsr:@std/path/join";
+import { Secret } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/secret.ts";
 
 export interface Config {
   r2BucketName: string;
@@ -40,12 +41,11 @@ export async function loadConfig(): Promise<Config | null> {
 }
 
 // Function to prompt user for configuration details
-// deno-lint-ignore require-await
 export async function promptForConfig(): Promise<Config> {
   const r2BucketName = prompt("Enter Cloudflare R2 Bucket Name:");
   const r2AccountId = prompt("Enter Cloudflare Account ID:");
   const cfAccessKeyId = prompt("Enter Cloudflare Access Key ID:");
-  const cfSecretAccessKey = prompt("Enter Cloudflare Secret Access Key (will be hidden):"); // Consider secure input for secrets if possible
+  const cfSecretAccessKey = await Secret.prompt("Enter Cloudflare Secret Access Key (input hidden):");
   const publicDomainUrl = prompt(
     "Enter R2 Public Custom Domain URL (e.g., https://cdn.example.com):",
   );
