@@ -18,7 +18,7 @@ English | [中文](#clip-pub-中文-)
 
 ## Prerequisites 📋
 
-- [Deno](https://deno.land/) (v1.0.0 or later)
+- [Deno](https://deno.land/) (v2.3.0 or later)
 - Cloudflare R2 account with:
   - R2 bucket
   - Access Key ID and Secret Access Key
@@ -144,7 +144,7 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 前置要求 📋
 
-- [Deno](https://deno.land/)（v1.0.0 或更高版本）
+- [Deno](https://deno.land/)（v2.3.0 或更高版本）
 - Cloudflare R2 账户，需要：
   - R2 存储桶
   - 访问密钥 ID 和密钥

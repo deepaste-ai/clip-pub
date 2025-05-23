@@ -1,0 +1,66 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            deno_os: x86_64-unknown-linux-gnu
+            artifact_name: clippub-linux
+          - os: macos-latest
+            deno_os: x86_64-apple-darwin
+            artifact_name: clippub-macos
+          - os: windows-latest
+            deno_os: x86_64-pc-windows-msvc
+            artifact_name: clippub-windows.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.3.0
+
+      - name: Build Binary
+        run: |
+          deno compile \
+            --allow-all \
+            --target ${{ matrix.deno_os }} \
+            --output ${{ matrix.artifact_name }} \
+            main.ts
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            clippub-linux
+            clippub-macos
+            clippub-windows.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
