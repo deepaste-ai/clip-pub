@@ -42,6 +42,8 @@ export async function loadConfig(): Promise<Config | null> {
 
 // Function to prompt user for configuration details
 export async function promptForConfig(): Promise<Config> {
+  console.log("\nFor detailed instructions on setting up Cloudflare R2 and obtaining the required credentials,");
+  console.log("please refer to our R2 Setup Guide: https://github.com/deepaste-ai/clip-pub/blob/main/docs/r2-setup-guide.md\n");
   const r2BucketName = prompt("Enter Cloudflare R2 Bucket Name:");
   const r2AccountId = prompt("Enter Cloudflare Account ID:");
   const cfAccessKeyId = prompt("Enter Cloudflare Access Key ID:");

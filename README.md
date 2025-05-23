@@ -62,7 +62,9 @@ deno install --global --allow-all -f --name clippub main.ts
 
 ## Configuration ⚙️
 
-Before using Clip Pub, you need to configure your Cloudflare R2 credentials:
+Before using Clip Pub, you need to configure your Cloudflare R2 credentials. For detailed instructions on setting up Cloudflare R2 and obtaining the required credentials, please refer to our [R2 Setup Guide](docs/r2-setup-guide.md).
+
+使用 Clip Pub 之前，您需要配置 Cloudflare R2 凭证。有关设置 Cloudflare R2 和获取所需凭证的详细说明，请参阅我们的 [R2 设置指南](docs/r2-setup-guide.md)。
 
 ```bash
 clippub configure
@@ -74,6 +76,13 @@ You'll be prompted to enter:
 - Cloudflare Access Key ID
 - Cloudflare Secret Access Key
 - R2 Public Custom Domain URL (e.g., https://cdn.example.com)
+
+需要输入以下信息：
+- Cloudflare R2 存储桶名称
+- Cloudflare 账户 ID
+- Cloudflare 访问密钥 ID
+- Cloudflare 密钥
+- R2 公共自定义域名 URL（例如：https://cdn.example.com）
 
 Configuration is stored securely in `~/.config/clippub/config.json`.
 
@@ -213,11 +222,18 @@ deno install --global --allow-all -f --name clippub main.ts
 
 ## 配置 ⚙️
 
-使用 Clip Pub 之前，需要配置 Cloudflare R2 凭证：
+使用 Clip Pub 之前，需要配置 Cloudflare R2 凭证。有关设置 Cloudflare R2 和获取所需凭证的详细说明，请参阅我们的 [R2 设置指南](docs/r2-setup-guide.md)。
 
 ```bash
 clippub configure
 ```
+
+You'll be prompted to enter:
+- Cloudflare R2 Bucket Name
+- Cloudflare Account ID
+- Cloudflare Access Key ID
+- Cloudflare Secret Access Key
+- R2 Public Custom Domain URL (e.g., https://cdn.example.com)
 
 需要输入以下信息：
 - Cloudflare R2 存储桶名称
@@ -226,7 +242,7 @@ clippub configure
 - Cloudflare 密钥
 - R2 公共自定义域名 URL（例如：https://cdn.example.com）
 
-配置信息安全存储在 `~/.config/clippub/config.json` 中。
+Configuration is stored securely in `~/.config/clippub/config.json`.
 
 ## 使用方法 🚀
 
